@@ -669,6 +669,8 @@ def api_schedule_set():
         global _scheduler_hour, _scheduler_minute
         _scheduler_hour = hour
         _scheduler_minute = minute
+        # 持久化到 user_config.json
+        write_config_multi({"SCHEDULE_HOUR": str(hour), "SCHEDULE_MINUTE": str(minute)})
         # 同步到 plist（供终端手动安装用）
         try:
             _sync_launchd_time(hour, minute)

@@ -9,6 +9,7 @@ output/
 
 # Runtime state (generated on the fly)
 scheduler_state.json
+user_config.json
 
 # IDE
 .idea/

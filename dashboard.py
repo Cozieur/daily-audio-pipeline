@@ -18,6 +18,8 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory, render_template
 
+from engines.tts import create_tts_engine
+
 ROOT = Path(__file__).resolve().parent
 CONFIG_FILE = ROOT / "config.py"
 SOURCES_FILE = ROOT / "sources.json"
@@ -50,6 +52,7 @@ _scheduler_hour = 8
 _scheduler_minute = 40
 _scheduler_thread: threading.Thread | None = None
 _scheduler_stop = threading.Event()
+_last_trigger_date: str | None = None  # YYYY-MM-DD of last trigger, prevents double-fire
 
 
 def _load_scheduler_state() -> bool:
@@ -75,20 +78,24 @@ def _save_scheduler_state() -> None:
 
 def _scheduler_loop():
     """Background loop: checks every 30s if it's time to run."""
-    global _scheduler_enabled
+    global _scheduler_enabled, _last_trigger_date
     while not _scheduler_stop.is_set():
         if _scheduler_enabled:
             now = datetime.now()
             cfg = parse_config()
             hour = int(cfg.get("SCHEDULE_HOUR", 8))
             minute = int(cfg.get("SCHEDULE_MINUTE", 0))
-            if now.hour == hour and now.minute == minute and not _pipeline_lock_obj.locked():
+            today_str = now.strftime("%Y-%m-%d")
+            # 匹配时间窗口（当前时间已过设定时间，且今天还没触发过）
+            if (now.hour > hour or (now.hour == hour and now.minute >= minute)
+                    and _last_trigger_date != today_str
+                    and not _pipeline_lock_obj.locked()):
                 print(f"⏰ 定时播报触发: {hour:02d}:{minute:02d}")
+                _last_trigger_date = today_str
                 try:
                     trigger_pipeline()
                 except Exception as e:
                     print(f"⚠️ 定时播报执行失败: {e}")
-                time.sleep(61)
         _scheduler_stop.wait(30)
 
 
@@ -106,6 +113,14 @@ def _ensure_scheduler():
         print(f"📂 调度器状态已恢复: 运行中")
 
 
+def _safe_release_lock():
+    """Release the pipeline lock, ignoring if already released by another thread."""
+    try:
+        _pipeline_lock_obj.release()
+    except RuntimeError:
+        pass
+
+
 def trigger_pipeline():
     """Run the pipeline in a background process (no lock check)."""
     global _pipeline_process
@@ -120,7 +135,7 @@ def trigger_pipeline():
         )
         _pipeline_process = proc
     except Exception:
-        _pipeline_lock_obj.release()
+        _safe_release_lock()
         raise
 
     def _cleanup():
@@ -133,7 +148,7 @@ def trigger_pipeline():
             pass
         proc.wait()
         _pipeline_process = None
-        _pipeline_lock_obj.release()
+        _safe_release_lock()
 
     threading.Thread(target=_cleanup, daemon=True).start()
 
@@ -182,71 +197,65 @@ def next_id(sources):
 
 # ─── Config helpers ──────────────────────────────────────
 
+USER_CONFIG_FILE = ROOT / "user_config.json"
+
+_CONFIG_DEFAULTS = {
+    "TTS_ENGINE": "edge-tts",
+    "SAY_VOICE": "zh-CN-XiaochenNeural",
+    "SAY_RATE": "200",
+    "TARGET_MINUTES": "30",
+    "AI_RELEVANCE_THRESHOLD": "0.3",
+    "MAX_NEWS_ITEMS": "50",
+    "SCHEDULE_HOUR": "8",
+    "SCHEDULE_MINUTE": "0",
+}
+
+
+def _load_user_config() -> dict:
+    try:
+        if USER_CONFIG_FILE.exists():
+            return json.loads(USER_CONFIG_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
+
+
+def _save_user_config(data: dict) -> None:
+    USER_CONFIG_FILE.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8",
+    )
+
+
 def parse_config():
-    text = CONFIG_FILE.read_text()
+    uc = _load_user_config()
     cfg = {}
-    pairs = [
-        ("TTS_ENGINE", r'^TTS_ENGINE\s*=\s*str\(os\.environ\.get\("TTS_ENGINE",\s*"([^"]+)"\)\)', "edge-tts"),
-        ("SAY_VOICE", r'^SAY_VOICE\s*=\s*str\(os\.environ\.get\("SAY_VOICE",\s*"([^"]+)"\)\)', "zh-CN-XiaoxiaoNeural"),
-        ("SAY_RATE", r'^SAY_RATE\s*=\s*str\(os\.environ\.get\("SAY_RATE",\s*"(\d+)"\)\)', "200"),
-        ("TARGET_MINUTES", r'^TARGET_MINUTES\s*=\s*int\(os\.environ\.get\("TARGET_MINUTES",\s*"(\d+)"\)\)', "20"),
-        ("AI_RELEVANCE_THRESHOLD", r'^AI_RELEVANCE_THRESHOLD\s*=\s*float\(os\.environ\.get\("AI_RELEVANCE_THRESHOLD",\s*"([\d.]+)"\)\)', "0.3"),
-        ("MAX_NEWS_ITEMS", r'^MAX_NEWS_ITEMS\s*=\s*int\(os\.environ\.get\("MAX_NEWS_ITEMS",\s*"(\d+)"\)\)', "50"),
-        ("SCHEDULE_HOUR", r'^SCHEDULE_HOUR\s*=\s*int\(os\.environ\.get\("SCHEDULE_HOUR",\s*"(\d+)"\)\)', "7"),
-        ("SCHEDULE_MINUTE", r'^SCHEDULE_MINUTE\s*=\s*int\(os\.environ\.get\("SCHEDULE_MINUTE",\s*"(\d+)"\)\)', "0"),
-    ]
-    for key, pattern, default in pairs:
-        m = re.search(pattern, text, re.MULTILINE)
-        cfg[key] = m.group(1) if m else default
+    for key, default in _CONFIG_DEFAULTS.items():
+        cfg[key] = uc.get(key, default)
     return cfg
 
 
 def write_config(key, value):
-    text = CONFIG_FILE.read_text()
-    env_map = {
-        "TTS_ENGINE": ('TTS_ENGINE', 'str', f'"{value}"'),
-        "SAY_VOICE": ('SAY_VOICE', 'str', f'"{value}"'),
-        "SAY_RATE": ('SAY_RATE', 'str', f'"{value}"'),
-        "TARGET_MINUTES": ('TARGET_MINUTES', 'int', value),
-        "AI_RELEVANCE_THRESHOLD": ('AI_RELEVANCE_THRESHOLD', 'float', value),
-        "MAX_NEWS_ITEMS": ('MAX_NEWS_ITEMS', 'int', value),
-        "SCHEDULE_HOUR": ('SCHEDULE_HOUR', 'int', value),
-        "SCHEDULE_MINUTE": ('SCHEDULE_MINUTE', 'int', value),
-    }
-    if key not in env_map:
+    if key not in _CONFIG_DEFAULTS:
         return False
-    env_key, cast_type, val = env_map[key]
-    old = f'{cast_type}(os.environ.get("{env_key}",'
-    pattern = re.compile(re.escape(old) + r'\s*"([^"]*)"\s*\)')
-    type_map = {"str": str, "int": int, "float": float}
-    cast = type_map[cast_type]
-    try:
-        cast_val = cast(value)
-    except (ValueError, TypeError):
-        return False
-    new = f'{cast_type}(os.environ.get("{env_key}", "{cast_val}")'
-    text = pattern.sub(new, text)
-    CONFIG_FILE.write_text(text)
+    uc = _load_user_config()
+    uc[key] = str(value)
+    _save_user_config(uc)
     return True
 
 
 def write_config_multi(updates):
+    uc = _load_user_config()
     for key, value in updates.items():
-        write_config(key, value)
-    # Re-read to confirm
-    cfg = parse_config()
+        if key in _CONFIG_DEFAULTS:
+            uc[key] = str(value)
+    _save_user_config(uc)
     # Update env for current process
-    env_map = {
-        "TTS_ENGINE": "TTS_ENGINE",
-        "TARGET_MINUTES": "TARGET_MINUTES",
-        "MAX_NEWS_ITEMS": "MAX_NEWS_ITEMS",
-        "SCHEDULE_HOUR": "SCHEDULE_HOUR",
-        "SCHEDULE_MINUTE": "SCHEDULE_MINUTE",
-        "AI_RELEVANCE_THRESHOLD": "AI_RELEVANCE_THRESHOLD",
-    }
-    for k, env_k in env_map.items():
-        if k in updates:
-            os.environ[env_k] = str(cfg.get(k, updates[k]))
+    for k in updates:
+        if k in _CONFIG_DEFAULTS:
+            os.environ[k] = str(uc[k])
+    cfg = {}
+    for key, default in _CONFIG_DEFAULTS.items():
+        cfg[key] = uc.get(key, default)
     return cfg
 
 
@@ -273,11 +282,18 @@ def list_transcripts():
             continue
         lines = f.read_text(encoding="utf-8").strip().split("\n")
         news_count = sum(1 for l in lines if l.startswith("第"))
+        # Check for audio file
+        has_audio = False
+        for ext in (".mp3", ".wav", ".aiff"):
+            if (OUTPUT_DIR / f"daily_news_{date_str}{ext}").exists():
+                has_audio = True
+                break
         result.append({
             "date": date_str,
             "is_today": date_str == datetime.now().strftime("%Y-%m-%d"),
             "news_count": news_count,
             "size": f.stat().st_size,
+            "has_audio": has_audio,
         })
     return result
 
@@ -381,6 +397,55 @@ def api_transcript_download(date):
     return send_from_directory(str(OUTPUT_DIR), path.name, as_attachment=True)
 
 
+@app.route("/api/audio/<date>")
+def api_audio(date):
+    """Serve historical audio file for a given date (P2-8)."""
+    if not _is_valid_date(date):
+        return jsonify({"error": "invalid date format"}), 400
+    for ext in (".mp3", ".wav", ".aiff"):
+        path = OUTPUT_DIR / f"daily_news_{date}{ext}"
+        if path.exists():
+            return send_from_directory(str(OUTPUT_DIR), path.name)
+    return jsonify({"error": "audio not found"}), 404
+
+
+@app.route("/api/audio/<date>/exists")
+def api_audio_exists(date):
+    """Check if an audio file exists for a given date (P2-8)."""
+    if not _is_valid_date(date):
+        return jsonify({"exists": False})
+    for ext in (".mp3", ".wav", ".aiff"):
+        path = OUTPUT_DIR / f"daily_news_{date}{ext}"
+        if path.exists():
+            return jsonify({"exists": True, "ext": ext})
+    return jsonify({"exists": False})
+
+
+@app.route("/api/test-voice", methods=["POST"])
+def api_test_voice():
+    """Synthesize a short test phrase and return audio stream (P2-9)."""
+    data = request.get_json(force=True) or {}
+    voice = data.get("voice", "zh-CN-XiaoxiaoNeural")
+    engine_name = data.get("engine", "edge-tts")
+    rate = data.get("rate", "200")
+    test_text = "你好，这是语音试听测试。今天的天气真不错！"
+
+    import tempfile
+    tmp_dir = tempfile.mkdtemp(prefix="dap_test_")
+    tmp_path = Path(tmp_dir) / "test_voice"
+
+    try:
+        engine = create_tts_engine(engine_name, voice=voice)
+        audio_file = engine.synthesize(test_text, tmp_path)
+        return send_from_directory(
+            str(Path(audio_file).parent),
+            Path(audio_file).name,
+            mimetype="audio/mpeg" if audio_file.endswith(".mp3") else "audio/wav",
+        )
+    except Exception as e:
+        return jsonify({"error": f"合成失败: {e}"}), 500
+
+
 @app.route("/api/config", methods=["GET", "POST"])
 def api_config():
     if request.method == "GET":
@@ -477,8 +542,7 @@ def api_play_now():
         trigger_pipeline()
         return jsonify({"ok": True, "message": "播报已触发"})
     except Exception as e:
-        if _pipeline_lock_obj.locked():
-            _pipeline_lock_obj.release()
+        _safe_release_lock()
         return jsonify({"error": str(e)}), 500
 
 
@@ -487,13 +551,13 @@ def api_play_stop():
     global _pipeline_process
     if not _pipeline_lock_obj.locked() or not _pipeline_process:
         return jsonify({"error": "没有正在运行的播报"}), 404
+    pid = _pipeline_process.pid
+    _pipeline_process = None
     try:
-        os.killpg(os.getpgid(_pipeline_process.pid), signal.SIGTERM)
+        os.killpg(os.getpgid(pid), signal.SIGTERM)
     except ProcessLookupError:
         pass
-    if _pipeline_lock_obj.locked():
-        _pipeline_lock_obj.release()
-    _pipeline_process = None
+    # _cleanup 线程会在进程退出后释放锁，这里不手动释放
     return jsonify({"ok": True, "message": "播报已停止"})
 
 

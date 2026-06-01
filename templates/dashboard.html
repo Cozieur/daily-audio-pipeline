@@ -1511,12 +1511,24 @@ async function saveVoiceConfig() {
 function ttsEngineChanged() { saveVoiceConfig(); }
 
 function testVoice() {
+  const voice = document.getElementById("cfgVoiceRole").value;
   const engine = document.getElementById("cfgTtsEngine").value;
-  if (engine === "edge-tts") {
-    toast("▶ 试听请执行: edge-tts --text '你好，世界' --voice zh-CN-XiaoxiaoNeural");
-  } else {
-    toast("▶ macOS 语音试听");
-  }
+  const rate = document.getElementById("cfgSayRate").value;
+  toast("⏳ 正在合成试听音频...");
+  fetch("/api/test-voice", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({voice, engine, rate}),
+  }).then(r => {
+    if (!r.ok) throw new Error("合成失败");
+    return r.blob();
+  }).then(blob => {
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.play();
+    audio.onended = () => URL.revokeObjectURL(url);
+    toast("▶ 试听播放中");
+  }).catch(e => toast("❌ " + e.message));
 }
 
 async function loadSources() {
@@ -1583,6 +1595,7 @@ async function loadHistory() {
           <div class="history-meta"><span>${t.news_count} 条</span></div>
         </div>
         <div class="history-actions">
+          ${t.has_audio ? `<button class="btn btn-ghost btn-sm" onclick="playAudio('${t.date}')">▶</button>` : ''}
           <button class="btn btn-ghost btn-sm" onclick="viewTranscript('${t.date}')">◈ 查看</button>
           <button class="btn btn-ghost btn-sm" onclick="downloadTranscript('${t.date}')">↓</button>
         </div>
@@ -1613,6 +1626,13 @@ async function viewTranscript(date) {
 function closeModal() { document.getElementById("modal").classList.remove("show"); }
 
 function downloadTranscript(date) { window.open(`/api/transcript/${date}/download`, "_blank"); }
+
+function playAudio(date) {
+  const audio = new Audio(`/api/audio/${date}`);
+  audio.play().catch(e => toast("播放失败: " + e.message));
+  toast("▶ 播放 " + date + " 音频");
+}
+
 function exportModal() { const date = document.getElementById("modal").dataset.date; if (date) downloadTranscript(date); }
 function copyModal() { const text = document.getElementById("modalBody").textContent; if (text) { navigator.clipboard.writeText(text); toast("⎘ 已复制"); } }
 

@@ -22,7 +22,22 @@ LOG="$OUTPUT_DIR/pipeline.log"
 cd "$PROJECT_DIR" || exit 1
 mkdir -p "$OUTPUT_DIR"
 
+# ── 并发保护：确保同一时间只有一个管道实例运行 ──
+LOCK_FILE="/tmp/daily-audio-pipeline.lock"
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+    echo "⚠️ 另一个管道实例正在运行，跳过本次执行" >> "$LOG"
+    exit 0
+fi
+
 echo "===== $(date) =====" >> "$LOG"
+
+# ── 日志轮转：超过 5MB 时归档 ──
+MAX_LOG_SIZE=$((5 * 1024 * 1024))
+if [ -f "$LOG" ] && [ "$(stat -f%z "$LOG" 2>/dev/null || echo 0)" -gt "$MAX_LOG_SIZE" ]; then
+    mv -f "$LOG" "${LOG}.1"
+    echo "📋 日志已轮转" >> "$LOG"
+fi
 
 # 清理 3 天前的音频文件（保留所有 .txt 文字稿和近 3 天的音频）
 echo "清理旧音频文件（>3天）..." >> "$LOG"
@@ -62,6 +77,8 @@ PIPELINE_OK=$?
 
 if [ $PIPELINE_OK -ne 0 ]; then
     echo "⚠️ Pipeline 退出码: $PIPELINE_OK" >> "$LOG"
+    # P1-4: 失败时发送 macOS 系统通知
+    osascript -e 'display notification "每日语音播报执行失败，请检查日志" with title "⚠️ 播报失败" subtitle "Pipeline 退出码: '"$PIPELINE_OK"'"' 2>/dev/null || true
 fi
 
 echo "===== 完成 =====" >> "$LOG"

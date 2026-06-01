@@ -228,5 +228,44 @@ class TestDashboardDateValidation(unittest.TestCase):
         self.assertFalse(_is_valid_date("2026-6-1"))
 
 
+class TestCrossDayDedup(unittest.TestCase):
+    def test_filters_recent_titles(self):
+        from daily_pipeline import filter_cross_day_duplicates, _normalize_title
+        items = [
+            {"title": "OpenAI 发布 GPT-5"},
+            {"title": "Google 发布 Gemini 3"},
+        ]
+        recent = {
+            "2026-05-31": [_normalize_title("OpenAI 发布 GPT-5")],
+        }
+        result = filter_cross_day_duplicates(items, recent)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["title"], "Google 发布 Gemini 3")
+
+    def test_empty_recent_passes_all(self):
+        from daily_pipeline import filter_cross_day_duplicates
+        items = [{"title": "News A"}, {"title": "News B"}]
+        result = filter_cross_day_duplicates(items, {})
+        self.assertEqual(len(result), 2)
+
+    def test_substring_match_in_recent(self):
+        from daily_pipeline import filter_cross_day_duplicates, _normalize_title
+        items = [{"title": "OpenAI 发布 GPT-5 模型"}]
+        recent = {
+            "2026-05-30": [_normalize_title("OpenAI 发布 GPT-5")],
+        }
+        result = filter_cross_day_duplicates(items, recent)
+        self.assertEqual(len(result), 0)
+
+
+class TestJsonConfig(unittest.TestCase):
+    def test_parse_config_returns_defaults(self):
+        from dashboard import parse_config, _CONFIG_DEFAULTS
+        cfg = parse_config()
+        # Should return all default keys
+        for key in _CONFIG_DEFAULTS:
+            self.assertIn(key, cfg)
+
+
 if __name__ == "__main__":
     unittest.main()

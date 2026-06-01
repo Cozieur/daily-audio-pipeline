@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Runtime output (logs, audio, cache)
+output/
+
+# Runtime state (generated on the fly)
+scheduler_state.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+.pytest_cache/
+
+# Old prototype
+dashboard-prototype.html

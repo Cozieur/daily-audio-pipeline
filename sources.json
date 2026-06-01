@@ -1,0 +1,9 @@
+[
+  {
+    "id": "bole-skill",
+    "name": "伯乐Skill · AI News Radar",
+    "url": "https://raw.githubusercontent.com/LearnPrompt/ai-news-radar/master/data/latest-24h.json",
+    "type": "json_api",
+    "enabled": true
+  }
+]

@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAILY AUDIO PIPELINE · 启动台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #06060c;
+  --bg-surface: rgba(12, 12, 30, 0.85);
+  --bg-card: rgba(16, 16, 36, 0.75);
+  --border-glow: rgba(0, 240, 255, 0.15);
+  --border-active: rgba(0, 240, 255, 0.4);
+  --cyan: #00f0ff;
+  --cyan-dim: rgba(0, 240, 255, 0.6);
+  --blue: #0044ff;
+  --blue-glow: rgba(0, 68, 255, 0.3);
+  --green: #30d158;
+  --amber: #ff9f0a;
+  --red: #ff453a;
+  --text-primary: #e8e8f0;
+  --text-secondary: rgba(200, 200, 220, 0.55);
+  --text-dim: rgba(200, 200, 220, 0.3);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Animated grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Scan line overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 240, 255, 0.015) 2px,
+    rgba(0, 240, 255, 0.015) 4px
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Ambient glow */
+.ambient-glow {
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.04) 0%, transparent 70%);
+  top: -200px;
+  right: -200px;
+  z-index: 0;
+  pointer-events: none;
+  animation: ambientPulse 8s ease-in-out infinite;
+}
+
+.ambient-glow-2 {
+  position: fixed;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 68, 255, 0.04) 0%, transparent 70%);
+  bottom: -150px;
+  left: -150px;
+  z-index: 0;
+  pointer-events: none;
+  animation: ambientPulse 12s ease-in-out infinite reverse;
+}
+
+@keyframes ambientPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 24px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.header-left h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #00f0ff 0%, #0044ff 50%, #00f0ff 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 4s ease-in-out infinite;
+  position: relative;
+}
+
+.header-left h1::after {
+  content: '// DAILY AUDIO PIPELINE';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  font-size: 22px;
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 4px;
+  color: rgba(0, 240, 255, 0.06);
+  -webkit-text-fill-color: transparent;
+  pointer-events: none;
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.header-left .subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  letter-spacing: 2px;
+}
+
+.header-left .subtitle::before {
+  content: '> ';
+  color: var(--cyan-dim);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── Mode Toggle (Sci-fi switch) ── */
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 12px;
+  border: 1px solid var(--border-glow);
+  border-radius: 20px;
+  background: rgba(0, 240, 255, 0.03);
+  transition: all .3s;
+}
+
+.mode-toggle:hover {
+  border-color: var(--border-active);
+  background: rgba(0, 240, 255, 0.06);
+}
+
+.mode-toggle-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  white-space: nowrap;
+  transition: color .3s;
+}
+
+.mode-toggle input { display: none; }
+
+.mode-toggle-slider {
+  width: 32px;
+  height: 18px;
+  background: rgba(200, 200, 220, 0.12);
+  border-radius: 9px;
+  position: relative;
+  transition: .3s;
+  border: 1px solid rgba(200, 200, 220, 0.1);
+}
+
+.mode-toggle-slider::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(200, 200, 220, 0.3);
+  top: 2px;
+  left: 2px;
+  transition: .3s;
+  box-shadow: 0 0 6px rgba(200, 200, 220, 0.1);
+}
+
+.mode-toggle input:checked + .mode-toggle-slider {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--cyan);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
+}
+
+.mode-toggle input:checked + .mode-toggle-slider::after {
+  left: 16px;
+  background: var(--cyan);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.mode-toggle input:checked ~ .mode-toggle-label {
+  color: var(--cyan);
+}
+
+/* ── Status Badge ── */
+.badge-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(48, 209, 88, 0.06);
+  border: 1px solid rgba(48, 209, 88, 0.15);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: 0.5px;
+}
+
+.badge-status .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(48, 209, 88, 0.5);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(48, 209, 88, 0.5); }
+  50% { opacity: 0.4; box-shadow: 0 0 4px rgba(48, 209, 88, 0.2); }
+}
+
+/* ── Cards ── */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 720px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
+
+.full { grid-column: 1 / -1; }
+
+.card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glow);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: all .3s;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan-dim), transparent);
+  opacity: 0.5;
+}
+
+.card:hover {
+  border-color: var(--border-active);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.04), inset 0 0 20px rgba(0, 240, 255, 0.02);
+}
+
+.card-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title .icon { font-size: 14px; opacity: 0.6; }
+
+.card-title .tag {
+  font-size: 9px;
+  background: rgba(0, 240, 255, 0.08);
+  color: var(--cyan-dim);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+  border: 1px solid rgba(0, 240, 255, 0.1);
+  letter-spacing: 1px;
+}
+
+/* ── Status Row ── */
+.status-row {
+  display: flex;
+  justify-content: space-around;
+}
+
+.stat {
+  text-align: center;
+  flex: 1;
+  position: relative;
+}
+
+.stat:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 15%;
+  height: 70%;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(200, 200, 220, 0.08), transparent);
+}
+
+.stat-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 4px;
+  letter-spacing: 1px;
+  color: var(--text-primary);
+}
+
+.stat-value.accent { color: var(--cyan); }
+.stat-value.success { color: var(--green); }
+
+/* ── Preview Box ── */
+.preview-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(200, 200, 220, 0.06);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.7;
+  max-height: 170px;
+  overflow-y: auto;
+  color: var(--text-secondary);
+}
+
+.preview-box::-webkit-scrollbar { width: 3px; }
+.preview-box::-webkit-scrollbar-track { background: transparent; }
+.preview-box::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.15); border-radius: 2px; }
+
+.preview-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── Config ── */
+.config-group { display: flex; flex-direction: column; gap: 10px; }
+
+.config-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.config-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.config-desc {
+  font-size: 10px;
+  color: var(--text-dim);
+  display: block;
+  margin-top: 2px;
+  letter-spacing: 0.3px;
+}
+
+.config-row input.time {
+  padding: 6px 10px;
+  border: 1px solid rgba(200, 200, 220, 0.1);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.config-row input.time:focus {
+  border-color: var(--cyan-dim);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.1);
+}
+
+.config-row input.num {
+  padding: 6px 10px;
+  border: 1px solid rgba(200, 200, 220, 0.1);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  width: 72px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.config-row input.num:focus {
+  border-color: var(--cyan-dim);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.1);
+}
+
+.config-row select {
+  padding: 6px 10px;
+  border: 1px solid rgba(200, 200, 220, 0.1);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text-primary);
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2300f0ff' stroke-width='1.5' fill='none' opacity='0.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 26px;
+  outline: none;
+}
+
+.config-row select:focus {
+  border-color: var(--cyan-dim);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.1);
+}
+
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-group input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(200, 200, 220, 0.1);
+  outline: none;
+}
+
+.slider-group input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--cyan);
+  border: 2px solid rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+  cursor: pointer;
+}
+
+.slider-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 44px;
+  text-align: center;
+  color: var(--cyan-dim);
+  letter-spacing: 0.5px;
+}
+
+/* ── Sources ── */
+.source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.source-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  transition: all .2s;
+  border: 1px solid transparent;
+}
+
+.source-item:hover {
+  background: rgba(0, 240, 255, 0.03);
+  border-color: rgba(0, 240, 255, 0.06);
+}
+
+.source-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.source-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.source-dot.on {
+  background: var(--green);
+  box-shadow: 0 0 6px rgba(48, 209, 88, 0.4);
+}
+
+.source-dot.off {
+  background: rgba(200, 200, 220, 0.15);
+}
+
+.source-name {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.source-url {
+  font-size: 10px;
+  color: var(--text-dim);
+  display: block;
+  margin-top: 1px;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.source-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--green);
+  display: inline-block;
+  margin-top: 2px;
+}
+
+.source-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--text-dim);
+  background: rgba(200, 200, 220, 0.04);
+  border: 1px solid rgba(200, 200, 220, 0.06);
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.source-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.add-source-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(200, 200, 220, 0.06);
+}
+
+.add-source-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid rgba(200, 200, 220, 0.1);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.add-source-row input::placeholder { color: var(--text-dim); }
+
+.add-source-row input:focus {
+  border-color: var(--cyan-dim);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.1);
+}
+
+.add-source-row select {
+  padding: 8px;
+  border: 1px solid rgba(200, 200, 220, 0.1);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .2s;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.12), rgba(0, 68, 255, 0.12));
+  color: var(--cyan);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(0, 68, 255, 0.2));
+  border-color: rgba(0, 240, 255, 0.4);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.1);
+}
+
+.btn-success {
+  background: rgba(48, 209, 88, 0.1);
+  color: var(--green);
+  border: 1px solid rgba(48, 209, 88, 0.2);
+}
+
+.btn-success:hover {
+  background: rgba(48, 209, 88, 0.18);
+  border-color: rgba(48, 209, 88, 0.35);
+  box-shadow: 0 0 12px rgba(48, 209, 88, 0.1);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid rgba(200, 200, 220, 0.1);
+  color: var(--text-secondary);
+}
+
+.btn-outline:hover {
+  border-color: rgba(200, 200, 220, 0.25);
+  background: rgba(200, 200, 220, 0.04);
+  color: var(--text-primary);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  padding: 4px 8px;
+  border: 1px solid transparent;
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+  border-color: rgba(200, 200, 220, 0.08);
+}
+
+.btn-danger {
+  background: rgba(255, 69, 58, 0.1);
+  color: var(--red);
+  border: 1px solid rgba(255, 69, 58, 0.15);
+}
+
+.btn-danger:hover {
+  background: rgba(255, 69, 58, 0.18);
+  border-color: rgba(255, 69, 58, 0.3);
+  box-shadow: 0 0 12px rgba(255, 69, 58, 0.08);
+}
+
+.btn-sm { padding: 4px 10px; font-size: 10px; border-radius: 5px; }
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none !important;
+}
+
+/* ── History ── */
+.history-list { max-height: 260px; overflow-y: auto; }
+
+.history-list::-webkit-scrollbar { width: 3px; }
+.history-list::-webkit-scrollbar-track { background: transparent; }
+.history-list::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.12); border-radius: 2px; }
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  transition: all .2s;
+  border: 1px solid transparent;
+}
+
+.history-item:hover {
+  background: rgba(0, 240, 255, 0.03);
+  border-color: rgba(0, 240, 255, 0.06);
+}
+
+.history-item.today {
+  background: rgba(0, 240, 255, 0.04);
+  border: 1px solid rgba(0, 240, 255, 0.1);
+  margin-bottom: 4px;
+}
+
+.history-date {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.history-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  display: flex;
+  gap: 8px;
+}
+
+.history-actions { display: flex; gap: 4px; }
+
+/* ── Modal ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.show { display: flex; }
+
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-glow);
+  border-radius: 14px;
+  padding: 28px;
+  max-width: 620px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 30px rgba(0, 240, 255, 0.03);
+}
+
+.modal h2 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.modal .close-btn {
+  float: right;
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: var(--text-dim);
+  cursor: pointer;
+  line-height: 1;
+  transition: color .2s;
+}
+
+.modal .close-btn:hover { color: var(--text-primary); }
+
+.modal pre {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(200, 200, 220, 0.06);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  max-height: 400px;
+  overflow-y: auto;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  left: auto;
+  bottom: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-glow);
+  color: var(--text-primary);
+  padding: 14px 24px;
+  border-radius: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity .3s;
+  z-index: 300;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 240, 255, 0.03);
+  letter-spacing: 0.5px;
+}
+
+.toast.show { opacity: 1; }
+
+/* ── Loading & Empty ── */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+/* ── Progress Overlay ── */
+.progress-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 150;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-overlay.show { display: flex; }
+
+.progress-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-glow);
+  border-radius: 16px;
+  padding: 40px 48px;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4), 0 0 40px rgba(0, 240, 255, 0.03);
+  max-width: 420px;
+  width: 90%;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(0, 240, 255, 0.08);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  margin: 0 auto 20px;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.1);
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.progress-card h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.progress-card p {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+.progress-log {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 240, 255, 0.06);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  line-height: 1.6;
+  text-align: left;
+  max-height: 180px;
+  overflow-y: auto;
+  margin-top: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--green);
+}
+
+.progress-log::-webkit-scrollbar { width: 3px; }
+.progress-log::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.12); border-radius: 2px; }
+
+.progress-card .btn-cancel {
+  display: inline-block;
+  margin-top: 20px;
+  background: transparent;
+  border: 1px solid rgba(200, 200, 220, 0.08);
+  color: var(--text-dim);
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .2s;
+  letter-spacing: 0.5px;
+}
+
+.progress-card .btn-cancel:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(255, 69, 58, 0.06);
+}
+
+/* ── Footer ── */
+.footer {
+  text-align: center;
+  margin-top: 32px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.footer::before {
+  content: '// ';
+  color: var(--cyan-dim);
+}
+
+/* ── Neon divider ── */
+.neon-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.15), transparent);
+  margin: 18px 0;
+}
+
+/* ── Data corruption effect on buttons ── */
+.btn:active {
+  transform: scale(0.97);
+}
+</style>
+</head>
+<body>
+<div class="ambient-glow"></div>
+<div class="ambient-glow-2"></div>
+
+<div class="container">
+  <div class="header">
+    <div class="header-left">
+      <h1>// DAILY AUDIO PIPELINE</h1>
+      <div class="subtitle">启动台 · 控制系统 v2.0</div>
+    </div>
+    <div class="header-right" id="headerStatus">
+      <span class="badge-status"><span class="dot"></span> 加载中...</span>
+      <label class="mode-toggle" title="切换数据源模式">
+        <span class="mode-toggle-label" id="modeLabel">CORE</span>
+        <input type="checkbox" id="modeSwitch" onchange="toggleMode()">
+        <span class="mode-toggle-slider"></span>
+      </label>
+      <button class="btn btn-primary" id="btnPlayNow" onclick="triggerPlay()">▶ 启动播报</button>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">◈</span> 系统运行</div>
+      <div class="status-row" id="statusRow">
+        <div class="stat"><div class="stat-label">上次播报</div><div class="stat-value" id="statLastRun">-</div></div>
+        <div class="stat"><div class="stat-label">新闻条数</div><div class="stat-value accent" id="statCount">-</div></div>
+        <div class="stat"><div class="stat-label">下次播报</div><div class="stat-value accent" id="statNextRun">-</div></div>
+        <div class="stat"><div class="stat-label">今日状态</div><div class="stat-value" id="statToday">-</div></div>
+      </div>
+    </div>
+
+    <div class="card" id="todayTranscript">
+      <div class="card-title"><span class="icon">◇</span> 今日日志</div>
+      <div class="preview-box" id="previewBox">加载中...</div>
+      <div class="preview-actions">
+        <button class="btn btn-outline btn-sm" onclick="downloadToday()">↓ 导出</button>
+        <button class="btn btn-outline btn-sm" onclick="copyToday()">⎘ 复制</button>
+        <button class="btn btn-outline btn-sm" onclick="printToday()">⎙ 打印</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">◈</span> 播报参数 <span class="tag">可调</span></div>
+      <div class="config-group">
+        <div class="config-row">
+          <span class="config-label">定时播报</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="scheduleStatus" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim)">检查中...</span>
+            <button class="btn btn-sm" id="btnScheduleToggle" style="display:none" onclick="toggleSchedule()"></button>
+          </div>
+        </div>
+        <div class="config-row">
+          <span class="config-label">播报时间 <span class="config-desc">24h</span></span>
+          <input type="time" class="time" id="cfgScheduleTime" onchange="scheduleTimeChanged()">
+        </div>
+        <div class="config-row">
+          <span class="config-label">目标时长</span>
+          <div class="slider-group">
+            <input type="range" min="5" max="60" value="20" id="cfgMinutes" oninput="document.getElementById('minutesLabel').textContent=this.value+'min'">
+            <span class="slider-value" id="minutesLabel">20min</span>
+          </div>
+        </div>
+        <div class="config-row">
+          <span class="config-label">最大条目</span>
+          <input type="number" class="num" value="50" id="cfgMaxItems">
+        </div>
+        <div class="config-row">
+          <span class="config-label">AI 阈值</span>
+          <div class="slider-group">
+            <input type="range" min="0" max="100" value="30" id="cfgThreshold" oninput="document.getElementById('thresholdLabel').textContent=(this.value/100).toFixed(2)">
+            <span class="slider-value" id="thresholdLabel">0.30</span>
+          </div>
+        </div>
+      </div>
+      <div class="neon-divider"></div>
+      <button class="btn btn-primary btn-sm" onclick="saveBroadcastConfig()">⟳ 写入配置</button>
+      <span id="saveBroadcastMsg" style="font-family: 'JetBrains Mono', monospace; font-size:10px; color:var(--green); margin-left:8px; display:none">✓ 已写入</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">◇</span> 语音引擎 <span class="tag">可调</span></div>
+      <div class="config-group">
+        <div class="config-row">
+          <span class="config-label">TTS 引擎</span>
+          <select id="cfgTtsEngine" onchange="ttsEngineChanged()">
+            <option value="edge-tts">Edge TTS</option>
+            <option value="say">macOS say</option>
+            <option value="openai">OpenAI TTS</option>
+          </select>
+        </div>
+        <div class="config-row">
+          <span class="config-label">中文声线</span>
+          <select id="cfgVoiceRole">
+            <option value="zh-CN-XiaoxiaoNeural">Xiaoxiao (女)</option>
+            <option value="zh-CN-YunxiNeural">Yunxi (男)</option>
+            <option value="zh-CN-YunjianNeural">Yunjian (男)</option>
+            <option value="zh-CN-XiaochenNeural">Xiaochen (女)</option>
+          </select>
+        </div>
+        <div class="config-row">
+          <span class="config-label">语速</span>
+          <input type="number" class="num" value="200" id="cfgSayRate">
+        </div>
+      </div>
+      <div class="neon-divider"></div>
+      <button class="btn btn-outline btn-sm" onclick="testVoice()">▶ 试听</button>
+      <button class="btn btn-primary btn-sm" style="margin-left:6px" onclick="saveVoiceConfig()">⟳ 写入配置</button>
+      <span id="saveVoiceMsg" style="font-family: 'JetBrains Mono', monospace; font-size:10px; color:var(--green); margin-left:8px; display:none">✓ 已写入</span>
+    </div>
+  </div>
+
+  <div class="card full">
+    <div class="card-title"><span class="icon">◈</span> 信号源 <span class="tag">可管理</span></div>
+    <div class="source-list" id="sourceList">
+      <div class="loading">加载中...</div>
+    </div>
+    <div class="add-source-row">
+      <input type="text" id="newSourceUrl" placeholder="输入 RSS / API URL...">
+      <input type="text" id="newSourceName" placeholder="名称（可选）">
+      <select id="newSourceType"><option value="json_api">JSON API</option><option value="rss">RSS Feed</option></select>
+      <button class="btn btn-primary btn-sm" onclick="addSource()">+ 添加</button>
+    </div>
+  </div>
+
+  <div class="card full" style="margin-top:14px">
+    <div class="card-title"><span class="icon">◇</span> 历史档案 <span id="historyCount" style="font-size:10px;color:var(--text-dim);font-weight:400;margin-left:4px;font-family:'JetBrains Mono',monospace"></span></div>
+    <div class="history-list" id="historyList"><div class="loading">加载中...</div></div>
+  </div>
+
+  <div class="footer">localhost:8765 · 协议 v1.0</div>
+</div>
+
+<div class="modal-overlay" id="modal"><div class="modal">
+  <button class="close-btn" onclick="closeModal()">&times;</button>
+  <h2 id="modalTitle">日志查看</h2>
+  <pre id="modalBody"></pre>
+  <div><button class="btn btn-outline btn-sm" onclick="exportModal()">↓ 导出</button>
+  <button class="btn btn-outline btn-sm" onclick="copyModal()">⎘ 复制</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<div class="progress-overlay" id="progressOverlay"><div class="progress-card">
+  <div class="spinner"></div>
+  <h3>正在生成播报...</h3>
+  <p>Horizon 抓取 → AI 分析 → TTS → 输出</p>
+  <pre class="progress-log" id="progressLog">启动中...</pre>
+  <button class="btn-cancel" onclick="cancelPlay()">■ 终止</button>
+</div></div>
+
+<script>
+let todayDate = "";
+let todayText = "";
+let configData = {};
+let playPollTimer = null;
+let statePollTimer = null;
+let prevPlaying = false;
+
+async function api(url, opts={}) {
+  const res = await fetch(url, { headers: {"Content-Type":"application/json"}, ...opts });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function toast(msg) {
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 3500);
+}
+
+function cancelPlay() {
+  if (playPollTimer) { clearInterval(playPollTimer); playPollTimer = null; }
+  if (_overlayLogTimer) { clearInterval(_overlayLogTimer); _overlayLogTimer = null; }
+  prevPlaying = false;
+  api("/api/play-stop", {method:"POST"})
+    .then(r => toast("⏹ " + (r.message || "播报已停止")))
+    .catch(e => toast("❌ " + e.message))
+    .finally(() => {
+      document.getElementById("progressOverlay").classList.remove("show");
+      const btn = document.getElementById("btnPlayNow");
+      if (btn) { btn.disabled = false; btn.innerHTML = "▶ 启动播报"; }
+      loadStatus();
+    });
+}
+
+function triggerPlay() {
+  const btn = document.getElementById("btnPlayNow");
+  if (!btn) return;
+  btn.disabled = true; btn.textContent = "⏳ 执行中...";
+  prevPlaying = true;
+
+  const overlay = document.getElementById("progressOverlay");
+  const logEl = document.getElementById("progressLog");
+  overlay.classList.add("show");
+  logEl.textContent = "正在启动 pipeline...";
+
+  let pollCount = 0;
+  const startedAt = Date.now();
+  let logPollTimer = null;
+
+  function pollLog() {
+    api("/api/pipeline-log")
+      .then(r => {
+        if (r.lines && r.lines.length > 0) {
+          const relevant = r.lines.filter(l => !l.startsWith("=====") && !l.startsWith("cd ") && l.trim());
+          if (relevant.length > 0) {
+            logEl.textContent = relevant.slice(-15).join("\n");
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
+  function checkDone() {
+    pollCount++;
+    api("/api/status")
+      .then(s => {
+        pollLog();
+        if (!s.is_playing && Date.now() - startedAt > 8000) {
+          done();
+        } else if (pollCount > 300) {
+          fail("超时（超过10分钟）");
+        } else {
+          playPollTimer = setTimeout(checkDone, 2000);
+        }
+      })
+      .catch(() => {
+        playPollTimer = setTimeout(checkDone, 2000);
+      });
+  }
+
+  function done() {
+    if (logPollTimer) clearInterval(logPollTimer);
+    if (playPollTimer) { clearTimeout(playPollTimer); playPollTimer = null; }
+    logEl.textContent += "\n\n✅ 播报完成";
+    setTimeout(() => {
+      overlay.classList.remove("show");
+      btn.disabled = false; btn.innerHTML = "▶ 启动播报";
+      toast("✅ 播报已完成");
+      loadStatus();
+      loadHistory();
+    }, 1500);
+  }
+
+  function fail(msg) {
+    if (logPollTimer) clearInterval(logPollTimer);
+    if (playPollTimer) { clearTimeout(playPollTimer); playPollTimer = null; }
+    logEl.textContent += "\n\n❌ " + msg;
+    setTimeout(() => {
+      overlay.classList.remove("show");
+      btn.disabled = false; btn.innerHTML = "▶ 启动播报";
+      toast("❌ " + msg);
+    }, 2000);
+  }
+
+  api("/api/play-now", {method:"POST"})
+    .then(r => {
+      logEl.textContent = "pipeline 已启动，等待 Horizon 完成...\n(首次运行可能需要几分钟，之后会更快)";
+      logPollTimer = setInterval(pollLog, 3000);
+      playPollTimer = setTimeout(checkDone, 3000);
+    })
+    .catch(e => {
+      overlay.classList.remove("show");
+      btn.disabled = false; btn.innerHTML = "▶ 启动播报";
+      toast("❌ " + e.message);
+    });
+}
+
+async function init() {
+  await Promise.all([loadStatus(), loadConfig()]);
+  loadScheduleStatus();
+  loadSources();
+  loadHistory();
+  statePollTimer = setInterval(pollPlayingState, 5000);
+}
+init();
+
+// ── Periodic state polling ──────────────────────────────
+let _overlayLogTimer = null;
+
+function pollPlayingState() {
+  api("/api/status").then(s => {
+    if (s.is_playing) {
+      if (!prevPlaying) {
+        prevPlaying = true;
+        const overlay = document.getElementById("progressOverlay");
+        if (!overlay.classList.contains("show")) {
+          overlay.classList.add("show");
+          document.getElementById("progressLog").textContent = "⏳ 播报执行中...（定时触发）";
+          _overlayLogTimer = setInterval(pollOverlayLog, 3000);
+        }
+        const btn = document.getElementById("btnPlayNow");
+        if (btn) { btn.disabled = true; btn.innerHTML = "⏳ 执行中..."; }
+      }
+    } else {
+      if (prevPlaying) {
+        prevPlaying = false;
+        if (_overlayLogTimer) { clearInterval(_overlayLogTimer); _overlayLogTimer = null; }
+        const overlay = document.getElementById("progressOverlay");
+        if (overlay.classList.contains("show")) {
+          document.getElementById("progressLog").textContent += "\n\n✅ 播报完成";
+          setTimeout(() => {
+            overlay.classList.remove("show");
+            const btn = document.getElementById("btnPlayNow");
+            if (btn) { btn.disabled = false; btn.innerHTML = "▶ 启动播报"; }
+            loadStatus();
+            loadHistory();
+          }, 1500);
+        }
+        const btn = document.getElementById("btnPlayNow");
+        if (btn) { btn.disabled = false; btn.innerHTML = "▶ 启动播报"; }
+        loadStatus();
+      }
+    }
+  }).catch(() => {});
+}
+
+function pollOverlayLog() {
+  api("/api/pipeline-log").then(r => {
+    if (r.lines && r.lines.length > 0) {
+      const relevant = r.lines.filter(l => !l.startsWith("=====") && !l.startsWith("cd ") && l.trim());
+      if (relevant.length > 0) {
+        document.getElementById("progressLog").textContent = relevant.slice(-15).join("\n");
+      }
+    }
+  }).catch(() => {});
+}
+
+async function loadStatus() {
+  try {
+    const s = await api("/api/status");
+    todayDate = s.today;
+    document.getElementById("statLastRun").textContent = s.last_run ? s.last_run.slice(11,16) : "-";
+    document.getElementById("statNextRun").textContent = s.next_run_display;
+    document.getElementById("statCount").textContent = s.run_info?.news_count || "-";
+
+    const todayBadge = document.getElementById("statToday");
+    if (s.is_today_done) {
+      todayBadge.textContent = "✅ 已完成";
+      todayBadge.className = "stat-value success";
+    } else {
+      todayBadge.textContent = "⏳ 待播报";
+      todayBadge.className = "stat-value accent";
+    }
+
+    document.getElementById("headerStatus").innerHTML = s.is_playing ?
+      `<span class="badge-status" style="border-color:rgba(255,159,10,0.2);color:#ff9f0a;background:rgba(255,159,10,0.04)"><span class="dot" style="background:#ff9f0a;box-shadow:0 0 8px rgba(255,159,10,0.4)"></span> 播报中...</span>
+      <label class="mode-toggle" style="opacity:0.5;pointer-events:none"><span class="mode-toggle-label">${s.source_mode === 'horizon' ? 'HORIZON' : 'BOLE'}</span>
+        <input type="checkbox" ${s.source_mode === 'horizon' ? 'checked' : ''} disabled>
+        <span class="mode-toggle-slider"></span>
+      </label>
+      <button class="btn btn-primary" id="btnPlayNow" onclick="triggerPlay()" disabled>⏳ 执行中...</button>` :
+      `<span class="badge-status"><span class="dot"></span> 下次播报 ${s.next_run_display}</span>
+      <label class="mode-toggle" title="切换数据源模式">
+        <span class="mode-toggle-label" id="modeLabel">${s.source_mode === 'horizon' ? 'HORIZON' : 'BOLE'}</span>
+        <input type="checkbox" id="modeSwitch" ${s.source_mode === 'horizon' ? 'checked' : ''} onchange="toggleMode()">
+        <span class="mode-toggle-slider"></span>
+      </label>
+      <button class="btn btn-primary" id="btnPlayNow" onclick="triggerPlay()">▶ 启动播报</button>`;
+
+    await loadTodayTranscript();
+  } catch(e) { console.error("loadStatus", e); }
+}
+
+async function toggleMode() {
+  const sw = document.getElementById("modeSwitch");
+  const mode = sw.checked ? "horizon" : "bole";
+  try {
+    await api("/api/mode", {method:"POST", body:JSON.stringify({mode})});
+    document.getElementById("modeLabel").textContent = mode === "horizon" ? "HORIZON" : "BOLE";
+    toast(mode === "horizon" ? "🔄 已切换至 HORIZON（消耗 token）" : "🔄 已切换至 BOLE（无 token 消耗）");
+  } catch(e) {
+    sw.checked = !sw.checked;
+    toast("❌ 切换失败");
+  }
+}
+
+async function loadTodayTranscript() {
+  try {
+    const list = await api("/api/transcripts");
+    if (list.length > 0 && list[0].is_today) {
+      const t = await api(`/api/transcript/${list[0].date}`);
+      todayText = t.text;
+      document.getElementById("previewBox").textContent = todayText;
+      document.getElementById("todayTranscript").querySelector(".card-title").innerHTML =
+        `<span class="icon">◇</span> 今日日志 · ${list[0].date}`;
+    } else {
+      document.getElementById("previewBox").textContent = "今日尚未生成日志，等待定时播报或点击「启动播报」。";
+    }
+  } catch(e) { document.getElementById("previewBox").textContent = "加载失败"; }
+}
+
+async function loadConfig() {
+  try {
+    configData = await api("/api/config");
+    document.getElementById("cfgScheduleTime").value =
+      `${String(configData.SCHEDULE_HOUR).padStart(2,'0')}:${String(configData.SCHEDULE_MINUTE).padStart(2,'0')}`;
+    document.getElementById("cfgMinutes").value = configData.TARGET_MINUTES;
+    document.getElementById("minutesLabel").textContent = configData.TARGET_MINUTES + "min";
+    document.getElementById("cfgMaxItems").value = configData.MAX_NEWS_ITEMS;
+    const tv = Math.round(parseFloat(configData.AI_RELEVANCE_THRESHOLD) * 100);
+    document.getElementById("cfgThreshold").value = tv;
+    document.getElementById("thresholdLabel").textContent = (tv/100).toFixed(2);
+    document.getElementById("cfgTtsEngine").value = configData.TTS_ENGINE;
+    document.getElementById("cfgVoiceRole").value = configData.SAY_VOICE;
+    document.getElementById("cfgSayRate").value = configData.SAY_RATE;
+  } catch(e) { console.error("loadConfig", e); }
+}
+
+function scheduleTimeChanged() {
+  const v = document.getElementById("cfgScheduleTime").value;
+  if (v) {
+    const [h,m] = v.split(":").map(Number);
+    api("/api/schedule", {method:"POST", body:JSON.stringify({action:"set_time", hour:h, minute:m})})
+      .then(r => {
+        toast("⏰ " + (r.message || "时间已更新"));
+        loadStatus();
+        loadScheduleStatus();
+      })
+      .catch(e => toast("❌ " + e.message));
+  }
+}
+
+async function loadScheduleStatus() {
+  try {
+    const s = await api("/api/schedule");
+    const statusEl = document.getElementById("scheduleStatus");
+    const btnEl = document.getElementById("btnScheduleToggle");
+    if (s.loaded) {
+      statusEl.textContent = "⚡ 运行中（每天 " + String(s.hour).padStart(2,"0") + ":" + String(s.minute).padStart(2,"0") + "）";
+      statusEl.style.color = "var(--green)";
+      btnEl.textContent = "⏸ 暂停";
+      btnEl.className = "btn btn-sm btn-outline";
+      btnEl.style.display = "inline-block";
+      btnEl.dataset.action = "pause";
+    } else {
+      statusEl.textContent = "⏸ 已暂停";
+      statusEl.style.color = "var(--amber)";
+      btnEl.textContent = "▶ 恢复";
+      btnEl.className = "btn btn-sm btn-success";
+      btnEl.style.display = "inline-block";
+      btnEl.dataset.action = "resume";
+    }
+  } catch(e) {
+    document.getElementById("scheduleStatus").textContent = "❌ 获取失败";
+    console.error("loadScheduleStatus", e);
+  }
+}
+
+function toggleSchedule() {
+  const btn = document.getElementById("btnScheduleToggle");
+  const action = btn.dataset.action;
+  btn.disabled = true;
+  btn.textContent = "处理中...";
+  api("/api/schedule", {method:"POST", body:JSON.stringify({action})})
+    .then(r => {
+      toast("✅ " + (r.message || ""));
+      btn.disabled = false;
+      loadScheduleStatus();
+    })
+    .catch(e => {
+      toast("❌ " + e.message);
+      btn.disabled = false;
+      loadScheduleStatus();
+    });
+}
+
+async function saveBroadcastConfig() {
+  const v = document.getElementById("cfgScheduleTime").value;
+  const [h,m] = v.split(":").map(Number);
+  const data = {
+    SCHEDULE_HOUR: String(h),
+    SCHEDULE_MINUTE: String(m),
+    TARGET_MINUTES: document.getElementById("cfgMinutes").value,
+    MAX_NEWS_ITEMS: document.getElementById("cfgMaxItems").value,
+    AI_RELEVANCE_THRESHOLD: (document.getElementById("cfgThreshold").value / 100).toFixed(2),
+  };
+  try {
+    const r = await api("/api/config", {method:"POST", body:JSON.stringify(data)});
+    const msg = document.getElementById("saveBroadcastMsg");
+    msg.style.display="inline"; setTimeout(()=>msg.style.display="none", 2000);
+    loadStatus();
+    loadScheduleStatus();
+  } catch(e) { toast("保存失败: "+e.message); }
+}
+
+async function saveVoiceConfig() {
+  const data = {
+    TTS_ENGINE: document.getElementById("cfgTtsEngine").value,
+    SAY_VOICE: document.getElementById("cfgVoiceRole").value,
+    SAY_RATE: document.getElementById("cfgSayRate").value,
+  };
+  try {
+    await api("/api/config", {method:"POST", body:JSON.stringify(data)});
+    const msg = document.getElementById("saveVoiceMsg");
+    msg.style.display="inline"; setTimeout(()=>msg.style.display="none", 2000);
+  } catch(e) { toast("保存失败: "+e.message); }
+}
+
+function ttsEngineChanged() { saveVoiceConfig(); }
+
+function testVoice() {
+  const engine = document.getElementById("cfgTtsEngine").value;
+  if (engine === "edge-tts") {
+    toast("▶ 试听请执行: edge-tts --text '你好，世界' --voice zh-CN-XiaoxiaoNeural");
+  } else {
+    toast("▶ macOS 语音试听");
+  }
+}
+
+async function loadSources() {
+  try {
+    const sources = await api("/api/sources");
+    const list = document.getElementById("sourceList");
+    if (sources.length === 0) { list.innerHTML = '<div class="empty">暂无内容来源，请在下方添加</div>'; return; }
+    list.innerHTML = sources.map(s => {
+      const isBuiltin = s.builtin;
+      return `
+      <div class="source-item" data-id="${s.id}">
+        <div class="source-info">
+          <span class="source-dot ${s.enabled?'on':'off'}"></span>
+          <div>
+            <span class="source-name">${escHtml(s.name)}</span>
+            <span class="source-url">${isBuiltin ? escHtml(s.sources_detail || '') : escHtml(s.url)}</span>
+            ${s.status ? `<span class="source-status">${s.status}</span>` : ''}
+          </div>
+        </div>
+        <div class="source-actions">
+          ${s.builtin ? `<span class="source-badge">BUILTIN</span>` : `
+          <button class="btn btn-ghost btn-sm" onclick="toggleSource('${s.id}',${!s.enabled})">${s.enabled?'⏸':'▶'}</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSource('${s.id}')">✕</button>`}
+        </div>
+      </div>`}).join("");
+  } catch(e) { document.getElementById("sourceList").innerHTML = '<div class="empty">加载失败</div>'; }
+}
+
+async function addSource() {
+  const url = document.getElementById("newSourceUrl").value.trim();
+  if (!url) { toast("请输入 URL"); return; }
+  const name = document.getElementById("newSourceName").value.trim() || url.split("/")[2] || url;
+  const type = document.getElementById("newSourceType").value;
+  try {
+    await api("/api/sources", {method:"POST", body:JSON.stringify({url,name,type})});
+    document.getElementById("newSourceUrl").value = "";
+    document.getElementById("newSourceName").value = "";
+    toast("✅ 来源已添加");
+    loadSources();
+  } catch(e) { toast("添加失败: "+e.message); }
+}
+
+async function toggleSource(id, enabled) {
+  try { await api(`/api/sources/${id}`, {method:"PUT", body:JSON.stringify({enabled})}); loadSources(); }
+  catch(e) { toast("操作失败"); }
+}
+
+async function deleteSource(id) {
+  if (!confirm("确定删除此来源？")) return;
+  try { await api(`/api/sources/${id}`, {method:"DELETE"}); loadSources(); }
+  catch(e) { toast("删除失败"); }
+}
+
+async function loadHistory() {
+  try {
+    const list = await api("/api/transcripts");
+    document.getElementById("historyCount").textContent = `（共 ${list.length} 条）`;
+    const el = document.getElementById("historyList");
+    if (list.length === 0) { el.innerHTML = '<div class="empty">暂无历史记录</div>'; return; }
+    el.innerHTML = list.map(t => `
+      <div class="history-item ${t.is_today?'today':''}">
+        <div>
+          <div class="history-date">${t.date}${t.is_today?' · 今日':''}</div>
+          <div class="history-meta"><span>${t.news_count} 条</span></div>
+        </div>
+        <div class="history-actions">
+          <button class="btn btn-ghost btn-sm" onclick="viewTranscript('${t.date}')">◈ 查看</button>
+          <button class="btn btn-ghost btn-sm" onclick="downloadTranscript('${t.date}')">↓</button>
+        </div>
+      </div>`).join("");
+  } catch(e) { document.getElementById("historyList").innerHTML = '<div class="empty">加载失败</div>'; }
+}
+
+function downloadToday() { if(todayDate) downloadTranscript(todayDate); else toast("暂无今日日志"); }
+function copyToday() { if(todayText) { navigator.clipboard.writeText(todayText); toast("⎘ 已复制"); } }
+
+function printToday() {
+  if (!todayText) { toast("暂无日志"); return; }
+  const w = window.open("","_blank");
+  w.document.write(`<pre style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.8;padding:20px;background:#06060c;color:#e8e8f0">${escHtml(todayText)}</pre>`);
+  w.document.close(); w.print();
+}
+
+async function viewTranscript(date) {
+  try {
+    const t = await api(`/api/transcript/${date}`);
+    document.getElementById("modalTitle").textContent = `日志 · ${date}`;
+    document.getElementById("modalBody").textContent = t.text;
+    document.getElementById("modal").dataset.date = date;
+    document.getElementById("modal").classList.add("show");
+  } catch(e) { toast("加载失败"); }
+}
+
+function closeModal() { document.getElementById("modal").classList.remove("show"); }
+
+function downloadTranscript(date) { window.open(`/api/transcript/${date}/download`, "_blank"); }
+function exportModal() { const date = document.getElementById("modal").dataset.date; if (date) downloadTranscript(date); }
+function copyModal() { const text = document.getElementById("modalBody").textContent; if (text) { navigator.clipboard.writeText(text); toast("⎘ 已复制"); } }
+
+function escHtml(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+document.getElementById("modal").addEventListener("click", function(e) { if (e.target === this) closeModal(); });
+document.addEventListener("keydown", e => { if(e.key==="Escape") closeModal(); });
+</script>
+</body>
+</html>

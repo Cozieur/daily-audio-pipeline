@@ -113,6 +113,22 @@ def _ensure_scheduler():
         print(f"📂 调度器状态已恢复: 运行中")
 
 
+SHELL_LOCK_FILE = Path("/tmp/daily-audio-pipeline.lock")
+
+
+def _shell_pipeline_running() -> bool:
+    """Check if the shell script is already running (shared PID lock)."""
+    try:
+        if SHELL_LOCK_FILE.exists():
+            pid = int(SHELL_LOCK_FILE.read_text().strip())
+            # Check if process is still alive
+            os.kill(pid, 0)
+            return True
+    except (ValueError, ProcessLookupError, PermissionError, FileNotFoundError):
+        pass
+    return False
+
+
 def _safe_release_lock():
     """Release the pipeline lock, ignoring if already released by another thread."""
     try:
@@ -124,6 +140,10 @@ def _safe_release_lock():
 def trigger_pipeline():
     """Run the pipeline in a background process (no lock check)."""
     global _pipeline_process
+    # 检查 shell 脚本是否已经在跑（跨进程互斥）
+    if _shell_pipeline_running():
+        print("⚠️ Shell 管道已在运行，跳过本次触发")
+        return
     script = str(ROOT / "run_daily.sh")
     _pipeline_lock_obj.acquire()
     try:
@@ -201,7 +221,7 @@ USER_CONFIG_FILE = ROOT / "user_config.json"
 
 _CONFIG_DEFAULTS = {
     "TTS_ENGINE": "edge-tts",
-    "SAY_VOICE": "zh-CN-XiaochenNeural",
+    "SAY_VOICE": "zh-CN-XiaoxiaoNeural",
     "SAY_RATE": "200",
     "TARGET_MINUTES": "30",
     "AI_RELEVANCE_THRESHOLD": "0.3",
@@ -365,7 +385,7 @@ def api_status():
         "next_run": next_run.isoformat(),
         "next_run_display": next_run.strftime("%H:%M"),
         "is_today_done": transcripts and transcripts[0].get("is_today"),
-        "is_playing": _pipeline_lock_obj.locked(),
+        "is_playing": _pipeline_lock_obj.locked() or _shell_pipeline_running(),
         "source_mode": get_source_mode(),
         "run_info": run_info,
         "today": datetime.now().strftime("%Y-%m-%d"),
@@ -536,7 +556,7 @@ def api_source_ops(source_id):
 
 @app.route("/api/play-now", methods=["POST"])
 def api_play_now():
-    if _pipeline_lock_obj.locked():
+    if _pipeline_lock_obj.locked() or _shell_pipeline_running():
         return jsonify({"error": "pipeline 正在运行中，请等待完成或先停止"}), 409
     try:
         trigger_pipeline()

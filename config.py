@@ -12,7 +12,7 @@ _USER_CONFIG_FILE = ROOT / "user_config.json"
 
 _DEFAULTS = {
     "TTS_ENGINE": "edge-tts",
-    "SAY_VOICE": "zh-CN-XiaochenNeural",
+    "SAY_VOICE": "zh-CN-XiaoxiaoNeural",
     "SAY_RATE": "200",
     "TARGET_MINUTES": "30",
     "AI_RELEVANCE_THRESHOLD": "0.3",

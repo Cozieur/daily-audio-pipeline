@@ -22,13 +22,17 @@ LOG="$OUTPUT_DIR/pipeline.log"
 cd "$PROJECT_DIR" || exit 1
 mkdir -p "$OUTPUT_DIR"
 
-# ── 并发保护：确保同一时间只有一个管道实例运行 ──
+# ── 并发保护：确保同一时间只有一个管道实例运行（PID 锁，兼容 macOS）──
 LOCK_FILE="/tmp/daily-audio-pipeline.lock"
-exec 200>"$LOCK_FILE"
-if ! flock -n 200; then
-    echo "⚠️ 另一个管道实例正在运行，跳过本次执行" >> "$LOG"
-    exit 0
+if [ -f "$LOCK_FILE" ]; then
+    OLD_PID=$(cat "$LOCK_FILE" 2>/dev/null)
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+        echo "⚠️ 另一个管道实例正在运行 (PID: $OLD_PID)，跳过本次执行" >> "$LOG"
+        exit 0
+    fi
 fi
+echo $$ > "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
 
 echo "===== $(date) =====" >> "$LOG"
 
@@ -77,8 +81,15 @@ PIPELINE_OK=$?
 
 if [ $PIPELINE_OK -ne 0 ]; then
     echo "⚠️ Pipeline 退出码: $PIPELINE_OK" >> "$LOG"
-    # P1-4: 失败时发送 macOS 系统通知
-    osascript -e 'display notification "每日语音播报执行失败，请检查日志" with title "⚠️ 播报失败" subtitle "Pipeline 退出码: '"$PIPELINE_OK"'"' 2>/dev/null || true
+    osascript -e "display notification \"每日语音播报执行失败，请检查日志\" with title \"⚠️ 播报失败\" subtitle \"Pipeline 退出码: $PIPELINE_OK\"" 2>/dev/null || true
+else
+    NEWS_COUNT=$(grep -o '[0-9]\+ 条新闻' "$LOG" | tail -1 | grep -o '[0-9]\+' || echo "")
+    if [ -n "$NEWS_COUNT" ]; then
+        MSG="今日播报已完成（${NEWS_COUNT} 条新闻）"
+    else
+        MSG="今日播报已完成"
+    fi
+    osascript -e "display notification \"$MSG\" with title \"✅ 播报完成\"" 2>/dev/null || true
 fi
 
 echo "===== 完成 =====" >> "$LOG"

@@ -87,7 +87,7 @@ def _scheduler_loop():
             minute = int(cfg.get("SCHEDULE_MINUTE", 0))
             today_str = now.strftime("%Y-%m-%d")
             # 匹配时间窗口（当前时间已过设定时间，且今天还没触发过）
-            if (now.hour > hour or (now.hour == hour and now.minute >= minute)
+            if ((now.hour > hour or (now.hour == hour and now.minute >= minute))
                     and _last_trigger_date != today_str
                     and not _pipeline_lock_obj.locked()):
                 print(f"⏰ 定时播报触发: {hour:02d}:{minute:02d}")
@@ -101,7 +101,7 @@ def _scheduler_loop():
 
 def _ensure_scheduler():
     """Start the scheduler thread if not running."""
-    global _scheduler_thread, _scheduler_enabled
+    global _scheduler_thread, _scheduler_enabled, _last_trigger_date
     if _scheduler_thread is None or not _scheduler_thread.is_alive():
         _scheduler_stop.clear()
         _scheduler_thread = threading.Thread(target=_scheduler_loop, daemon=True)
@@ -111,6 +111,11 @@ def _ensure_scheduler():
     _scheduler_enabled = _load_scheduler_state()
     if _scheduler_enabled:
         print(f"📂 调度器状态已恢复: 运行中")
+    # 防止重启后重复触发：如果今天的文字稿已存在，标记今天已触发
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    if (OUTPUT_DIR / f"daily_news_{today_str}.txt").exists():
+        _last_trigger_date = today_str
+        print(f"📋 今日播报已完成过，不会重复触发")
 
 
 SHELL_LOCK_FILE = Path("/tmp/daily-audio-pipeline.lock")
